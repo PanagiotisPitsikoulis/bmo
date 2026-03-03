@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { config, SYSTEM_PROMPT, type Message } from "../config";
+import { getMemorySummary, recallMemories } from "../memory-store";
 
 let client: Anthropic | null = null;
 
@@ -10,34 +11,42 @@ function getClient(): Anthropic {
   return client;
 }
 
-export async function chat(
-  messages: Message[],
-  onChunk?: (text: string) => void
-): Promise<string> {
+function buildSystemPrompt(messages: Message[]): string {
+  let prompt = SYSTEM_PROMPT;
+
+  const memorySummary = getMemorySummary();
+  if (memorySummary) prompt += memorySummary;
+
+  const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+  if (lastUserMsg) {
+    const relevant = recallMemories(lastUserMsg.content, 5);
+    if (relevant.length > 0) {
+      prompt += "\n\nRelevant memories for this conversation:\n";
+      for (const m of relevant) {
+        prompt += `- [${m.category}] ${m.content}\n`;
+      }
+    }
+  }
+
+  return prompt;
+}
+
+export async function chat(messages: Message[]): Promise<string> {
   const anthropic = getClient();
 
   const apiMessages = messages
     .filter((m) => m.role !== "system")
     .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
 
-  let fullResponse = "";
-
-  const stream = anthropic.messages.stream({
+  const response = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 512,
-    system: SYSTEM_PROMPT,
+    system: buildSystemPrompt(messages),
     messages: apiMessages,
   });
 
-  for await (const event of stream) {
-    if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-      const text = event.delta.text;
-      fullResponse += text;
-      onChunk?.(text);
-    }
-  }
-
-  return fullResponse;
+  const block = response.content[0];
+  return block?.type === "text" ? block.text : "";
 }
 
 export async function summarize(result: string, question: string): Promise<string> {

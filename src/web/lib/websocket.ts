@@ -1,10 +1,11 @@
-import type { State } from "./types";
+import type { State, Emotion } from "./types";
 
 export interface WSCallbacks {
 	onState: (state: State) => void;
 	onResponse: (text: string) => void;
 	onAudio: (data: ArrayBuffer) => void;
 	onError: (message: string) => void;
+	onEmotion: (emotion: Emotion) => void;
 	onDisconnect: () => void;
 }
 
@@ -27,6 +28,9 @@ export function createWebSocket(callbacks: WSCallbacks): WebSocket {
 				break;
 			case "response":
 				callbacks.onResponse(msg.text);
+				break;
+			case "emotion":
+				callbacks.onEmotion(msg.emotion);
 				break;
 			case "error":
 				callbacks.onError(msg.message ?? "Unknown server error");

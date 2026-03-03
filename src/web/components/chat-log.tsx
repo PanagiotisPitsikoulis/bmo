@@ -17,32 +17,42 @@ function Spinner() {
 	);
 }
 
-function TypewriterText({ text, onDone }: { text: string; onDone?: () => void }) {
-	const [phase, setPhase] = useState<"delay" | "typing" | "done">("delay");
-	const [charIndex, setCharIndex] = useState(0);
+function WordByWordText({ text, onDone }: { text: string; onDone?: () => void }) {
+	const [phase, setPhase] = useState<"delay" | "streaming" | "done">("delay");
+	const [wordIndex, setWordIndex] = useState(0);
+	const words = text.split(/(\s+)/); // preserve whitespace tokens
 
 	useEffect(() => {
-		const timer = setTimeout(() => setPhase("typing"), 800);
+		const timer = setTimeout(() => setPhase("streaming"), 400);
 		return () => clearTimeout(timer);
 	}, []);
 
 	useEffect(() => {
-		if (phase !== "typing") return;
-		if (charIndex >= text.length) {
+		if (phase !== "streaming") return;
+		if (wordIndex >= words.length) {
 			setPhase("done");
 			onDone?.();
 			return;
 		}
-		const speed = 25 + Math.random() * 20;
-		const timer = setTimeout(() => setCharIndex((c) => c + 1), speed);
+		// Skip whitespace-only tokens instantly
+		if (/^\s+$/.test(words[wordIndex]!)) {
+			setWordIndex((i) => i + 1);
+			return;
+		}
+		const speed = 120 + Math.random() * 80;
+		const timer = setTimeout(() => setWordIndex((i) => i + 1), speed);
 		return () => clearTimeout(timer);
-	}, [phase, charIndex, text]);
+	}, [phase, wordIndex, words]);
 
 	if (phase === "delay") return <Spinner />;
+
+	// Reconstruct text up to current word index
+	const visible = words.slice(0, wordIndex).join("");
+
 	return (
 		<span className="text-sm font-base">
-			{text.slice(0, charIndex)}
-			{phase === "typing" && (
+			{visible}
+			{phase === "streaming" && (
 				<span className="inline-block w-0.5 h-3.5 bg-foreground ml-0.5 animate-pulse align-text-bottom" />
 			)}
 		</span>
@@ -51,7 +61,7 @@ function TypewriterText({ text, onDone }: { text: string; onDone?: () => void })
 
 export function ChatLog({ messages }: { messages: ChatMessage[] }) {
 	const endRef = useRef<HTMLDivElement>(null);
-	const [lastTypedIndex, setLastTypedIndex] = useState(-1);
+	const [lastTypedIndex, setLastTypedIndex] = useState(messages.length - 1);
 
 	useEffect(() => {
 		endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -68,10 +78,10 @@ export function ChatLog({ messages }: { messages: ChatMessage[] }) {
 							variant={isBmo ? "default" : "neutral"}
 							className="shrink-0 mt-0.5"
 						>
-							{isBmo ? "BMO" : "You"}
+							{isBmo ? "B-MO" : "You"}
 						</Badge>
 						{isNew ? (
-							<TypewriterText
+							<WordByWordText
 								text={m.text}
 								onDone={() => setLastTypedIndex(i)}
 							/>

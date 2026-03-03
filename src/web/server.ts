@@ -1,8 +1,10 @@
 import { chat, summarize } from "../llm/claude";
 import { textToSpeech } from "../tts/fish-audio";
-import { executeAction, extractJson } from "../tools/router";
-import type { Message } from "../config";
+import { executeAction, extractJson, extractEmotion, stripJson } from "../tools/router";
+import type { Message, Emotion } from "../config";
 import index from "./index.html";
+
+const EMOTION_COOLDOWN_MESSAGES = 3;
 
 function parseApiError(e: unknown): string {
 	const msg = String(e);
@@ -21,7 +23,13 @@ function parseApiError(e: unknown): string {
 	return msg;
 }
 
-const connections = new Map<unknown, { messages: Message[] }>();
+interface Connection {
+	messages: Message[];
+	emotion: Emotion;
+	messagesSinceEmotionChange: number;
+}
+
+const connections = new Map<unknown, Connection>();
 
 const server = Bun.serve({
 	port: parseInt(process.env.PORT ?? "3000"),
@@ -42,7 +50,7 @@ const server = Bun.serve({
 	},
 	websocket: {
 		open(ws) {
-			connections.set(ws, { messages: [] });
+			connections.set(ws, { messages: [], emotion: "normal", messagesSinceEmotionChange: 0 });
 			ws.send(JSON.stringify({ type: "state", state: "idle" }));
 			console.log("[WS] Client connected");
 		},
@@ -55,10 +63,10 @@ const server = Bun.serve({
 
 				if (msg.type === "mock") {
 					const mockResponses = [
-						"Hello! I am BMO! I am ready to help you!",
+						"Hello! I am B-MO! I am ready to help you!",
 						"Beep boop! That is a great question!",
 						"I am thinking very hard about this. The answer is 42!",
-						"Oh boy! I love talking to you!",
+						"Oh boy! B-MO loves talking to you!",
 					];
 					const pick = mockResponses[Math.floor(Math.random() * mockResponses.length)]!;
 					console.log(`[MOCK] ${pick}`);
@@ -94,10 +102,21 @@ const server = Bun.serve({
 						console.error(`[CLAUDE] ${errMsg}`);
 						ws.send(JSON.stringify({ type: "error", message: errMsg }));
 						ws.send(JSON.stringify({ type: "state", state: "idle" }));
-						conn.messages.pop(); // remove failed user message
+						conn.messages.pop();
 						return;
 					}
 
+					// Extract emotion with tolerance — don't flip-flop every message
+					const newEmotion = extractEmotion(response);
+					conn.messagesSinceEmotionChange++;
+					if (newEmotion && newEmotion !== conn.emotion && conn.messagesSinceEmotionChange >= EMOTION_COOLDOWN_MESSAGES) {
+						conn.emotion = newEmotion;
+						conn.messagesSinceEmotionChange = 0;
+						console.log(`[EMOTION] ${newEmotion}`);
+						ws.send(JSON.stringify({ type: "emotion", emotion: newEmotion }));
+					}
+
+					// Extract action data
 					const actionData = extractJson(response);
 					let finalText: string;
 
@@ -105,15 +124,24 @@ const server = Bun.serve({
 						console.log(`[ACTION] ${JSON.stringify(actionData)}`);
 						const toolResult = await executeAction(actionData);
 
+						// Strip JSON from text for display
+						const spokenText = stripJson(response);
+
 						if (toolResult === "INVALID_ACTION") {
-							finalText = "I am not sure how to do that.";
+							finalText = spokenText || "I am not sure how to do that.";
 						} else if (toolResult === "SEARCH_EMPTY") {
-							finalText = "I searched, but I could not find anything about that.";
+							finalText = spokenText || "I searched, but I could not find anything about that.";
 						} else if (toolResult === "SEARCH_ERROR") {
-							finalText = "I cannot reach the internet right now.";
+							finalText = spokenText || "I cannot reach the internet right now.";
+						} else if (toolResult.startsWith("MEMORY_SAVED:")) {
+							// Memory saved — use the spoken text from Claude
+							finalText = spokenText || "B-MO will remember that!";
 						} else {
 							finalText = await summarize(toolResult, userText);
 						}
+					} else if (actionData?.emotion) {
+						// Emotion-only JSON, strip it from display text
+						finalText = stripJson(response);
 					} else {
 						finalText = response;
 					}
