@@ -1,7 +1,8 @@
-import { Slot } from "@radix-ui/react-slot";
+import { Slot } from "./slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import * as React from "react";
 import { cn } from "../../lib/utils";
+import { sfxClick, sfxHover } from "../../lib/sounds";
 
 const buttonVariants = cva(
 	"inline-flex items-center justify-center whitespace-nowrap rounded-base text-sm font-base ring-offset-white transition-all gap-2 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
@@ -35,6 +36,8 @@ function Button({
 	variant,
 	size,
 	asChild = false,
+	onClick,
+	onMouseEnter,
 	...props
 }: React.ComponentProps<"button"> &
 	VariantProps<typeof buttonVariants> & {
@@ -45,6 +48,14 @@ function Button({
 		<Comp
 			data-slot="button"
 			className={cn(buttonVariants({ variant, size, className }))}
+			onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+				sfxClick();
+				onClick?.(e);
+			}}
+			onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
+				sfxHover();
+				onMouseEnter?.(e);
+			}}
 			{...props}
 		/>
 	);

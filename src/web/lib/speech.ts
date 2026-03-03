@@ -29,11 +29,14 @@ export function startSpeechRecognition(
 		};
 
 		recognition.onerror = (e: any) => {
+			// "network" and "no-speech" are soft failures — just stop recording silently
+			if (e.error === "network" || e.error === "no-speech") {
+				onEnd();
+				return;
+			}
 			const errorMap: Record<string, string> = {
 				"not-allowed": "Microphone access denied. Check browser permissions.",
-				"no-speech": "No speech detected. Try again.",
 				"audio-capture": "No microphone found.",
-				"network": "Network error during speech recognition.",
 			};
 			onError(errorMap[e.error] ?? `Speech error: ${e.error}`);
 			onEnd();

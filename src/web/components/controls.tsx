@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Mic, MicOff, Send } from "lucide-react";
+import { Microphone, MicrophoneSlash, PaperPlaneRight } from "@phosphor-icons/react";
 
 interface ControlsProps {
 	onSend: (text: string) => void;
@@ -25,7 +25,7 @@ export function Controls({
 	}
 
 	return (
-		<div className="w-full max-w-lg flex gap-2">
+		<div className="w-full flex gap-2">
 			<Input
 				value={input}
 				onChange={(e) => setInput(e.target.value)}
@@ -34,7 +34,7 @@ export function Controls({
 				className="flex-1"
 			/>
 			<Button onClick={handleSend}>
-				<Send />
+				<PaperPlaneRight />
 				Send
 			</Button>
 			<Button
@@ -46,9 +46,9 @@ export function Controls({
 						? "Click to talk"
 						: "Speech recognition not supported — use Chrome"
 				}
-				className={isRecording ? "bg-red-500 text-white border-border" : ""}
+				className={isRecording ? "bg-destructive text-destructive-foreground border-border" : ""}
 			>
-				{isRecording ? <MicOff /> : <Mic />}
+				{isRecording ? <MicrophoneSlash /> : <Microphone />}
 				{isRecording ? "Stop" : "Talk"}
 			</Button>
 		</div>

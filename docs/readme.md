@@ -1,5 +1,7 @@
 # BMO Talking Robot
 
+![BMO](src/web/assets/cover.webp)
+
 ## What is this
 
 A budget friendly, real-life BMO from Adventure Time. It's a small physical robot you can talk to, powered by a Raspberry Pi and an LED matrix screen for the face. You speak to it, it listens, thinks using AI, and talks back with a real voice. It can also search the web, tell you the time, and see things through a camera. Is very lightweight and is build using the Typescript language and Bun runtime, to be able to execute on very budget friendly hardware.

@@ -18,8 +18,8 @@ export function DebugMenu({ onMockResponse }: DebugMenuProps) {
 
 	return (
 		<Select onValueChange={handleChange} value="">
-			<SelectTrigger className="w-[160px]">
-				<SelectValue placeholder="Debug Menu" />
+			<SelectTrigger className="w-auto h-auto px-4 py-1 text-sm uppercase tracking-wider">
+				<SelectValue placeholder="Debug" />
 			</SelectTrigger>
 			<SelectContent>
 				<SelectItem value="mock">Mock BMO response</SelectItem>

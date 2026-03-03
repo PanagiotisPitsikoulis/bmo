@@ -134,13 +134,25 @@ export function BMOFace({ state }: { state: State }) {
 	}, [state]);
 
 	return (
-		<canvas
-			ref={canvasRef}
-			style={{
-				borderRadius: "8px",
-				border: "3px solid #222",
-				boxShadow: "0 0 20px rgba(0, 200, 160, 0.15)",
-			}}
-		/>
+		<div className="w-full rounded-xl bg-[#0c0c0c] p-3 border-2 border-[#2a2a2a] shadow-[inset_0_2px_4px_rgba(0,0,0,0.6),0_0_30px_rgba(0,200,160,0.1)]">
+			<div className="relative rounded-lg overflow-hidden border border-[#1a1a1a]">
+				<canvas
+					ref={canvasRef}
+					className="w-full block"
+				/>
+				<div className="absolute inset-0 pointer-events-none rounded-lg shadow-[inset_0_0_40px_rgba(0,0,0,0.4)]" />
+			</div>
+			<div className="flex items-center justify-between mt-2 px-1">
+				<div className="flex gap-1.5">
+					<div className="w-1.5 h-1.5 rounded-full bg-[#00c8a0] shadow-[0_0_4px_rgba(0,200,160,0.6)]" />
+					<div className="w-1.5 h-1.5 rounded-full bg-[#333]" />
+				</div>
+				<span className="text-[9px] uppercase tracking-[0.2em] text-[#333] font-mono">LED Matrix</span>
+				<div className="flex gap-1.5">
+					<div className="w-1.5 h-1.5 rounded-full bg-[#333]" />
+					<div className="w-1.5 h-1.5 rounded-full bg-[#333]" />
+				</div>
+			</div>
+		</div>
 	);
 }

@@ -28,10 +28,15 @@ const server = Bun.serve({
 	routes: {
 		"/": index,
 	},
-	fetch(req, server) {
-		if (new URL(req.url).pathname === "/ws") {
+	async fetch(req, server) {
+		const url = new URL(req.url);
+		if (url.pathname === "/ws") {
 			if (server.upgrade(req)) return;
 			return new Response("WebSocket upgrade failed", { status: 500 });
+		}
+		if (url.pathname.startsWith("/assets/")) {
+			const file = Bun.file(`./src/web${url.pathname}`);
+			if (await file.exists()) return new Response(file);
 		}
 		return new Response("Not Found", { status: 404 });
 	},
