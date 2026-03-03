@@ -1,0 +1,29 @@
+{
+	"name": "bmo",
+	"module": "index.ts",
+	"type": "module",
+	"private": true,
+	"devDependencies": {
+		"@types/bun": "latest",
+		"@types/react": "^19.2.14",
+		"@types/react-dom": "^19.2.3"
+	},
+	"scripts": {
+		"start": "bun --bun run index.ts",
+		"dev": "bun --bun --hot src/web/server.ts",
+		"build": "bun run src/web/build.ts",
+		"build:pi": "bun build --compile --minify --sourcemap --bytecode --target=bun-linux-arm64 ./src/index.ts --outfile dist/bmo",
+		"test": "bun test",
+		"kill": "pkill -f 'bun.*server\\.ts' || true; lsof -ti :3000 | xargs kill -9 2>/dev/null || echo 'No bun servers running'"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	},
+	"dependencies": {
+		"@anthropic-ai/sdk": "^0.78.0",
+		"bun-plugin-tailwind": "^0.1.2",
+		"react": "^19.2.4",
+		"react-dom": "^19.2.4",
+		"tailwindcss": "^4.2.1"
+	}
+}
