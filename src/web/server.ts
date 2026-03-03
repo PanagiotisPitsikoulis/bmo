@@ -48,25 +48,39 @@ const server = Bun.serve({
 			try {
 				const msg = JSON.parse(String(raw));
 
-				if (msg.type === "mock") {
-					const mockResponses = [
-						"Hello! I am BMO! I am ready to help you!",
-						"Beep boop! That is a great question!",
-						"I am thinking very hard about this. The answer is 42!",
-						"Oh boy! I love talking to you!",
-					];
-					const pick = mockResponses[Math.floor(Math.random() * mockResponses.length)]!;
-					console.log(`[MOCK] ${pick}`);
-
-					ws.send(JSON.stringify({ type: "response", text: pick }));
+				if (msg.type === "test-voice") {
+					// Test Fish Audio TTS only — no Claude
+					const text = "Hello! I am BMO! Can you hear me?";
+					console.log(`[TEST-VOICE] ${text}`);
+					ws.send(JSON.stringify({ type: "response", text: `[Voice Test] ${text}` }));
 					ws.send(JSON.stringify({ type: "state", state: "speaking" }));
 
 					try {
-						const audio = await textToSpeech(pick);
+						const audio = await textToSpeech(text);
 						ws.send(audio);
 					} catch (e) {
 						const errMsg = parseApiError(e);
 						console.error(`[TTS] ${errMsg}`);
+						ws.send(JSON.stringify({ type: "error", message: errMsg }));
+					}
+
+					ws.send(JSON.stringify({ type: "state", state: "idle" }));
+					return;
+				}
+
+				if (msg.type === "test-logic") {
+					// Test Claude API only — no TTS
+					console.log("[TEST-LOGIC] Testing Claude...");
+					ws.send(JSON.stringify({ type: "state", state: "thinking" }));
+
+					try {
+						const response = await chat(
+							[{ role: "user", content: "Say hello in one short sentence." }],
+						);
+						ws.send(JSON.stringify({ type: "response", text: `[Logic Test] ${response}` }));
+					} catch (e) {
+						const errMsg = parseApiError(e);
+						console.error(`[CLAUDE] ${errMsg}`);
 						ws.send(JSON.stringify({ type: "error", message: errMsg }));
 					}
 

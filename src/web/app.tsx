@@ -82,13 +82,24 @@ function App() {
 		);
 	}
 
-	function handleMockResponse() {
+	function handleDebugAction(action: string) {
+		if (action.startsWith("state-")) {
+			setState(action.replace("state-", "") as State);
+			return;
+		}
+
 		if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
 			showError("Not connected to server.");
 			return;
 		}
-		wsRef.current.send(JSON.stringify({ type: "mock" }));
-		setState("thinking");
+
+		if (action === "test-voice") {
+			wsRef.current.send(JSON.stringify({ type: "test-voice" }));
+			setState("speaking");
+		} else if (action === "test-logic") {
+			wsRef.current.send(JSON.stringify({ type: "test-logic" }));
+			setState("thinking");
+		}
 	}
 
 	return (
@@ -110,7 +121,7 @@ function App() {
 				<div style={{ border: "2px solid black", padding: "4px 16px", fontSize: "14px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "monospace" }}>
 					{state}
 				</div>
-				<DebugMenu onMockResponse={handleMockResponse} />
+				<DebugMenu onAction={handleDebugAction} />
 			</div>
 
 			{error && (

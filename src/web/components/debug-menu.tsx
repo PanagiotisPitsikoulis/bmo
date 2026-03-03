@@ -1,14 +1,16 @@
 import React, { useRef } from "react";
+import type { State } from "../lib/types";
 
 interface DebugMenuProps {
-	onMockResponse: () => void;
+	onAction: (action: string) => void;
 }
 
-export function DebugMenu({ onMockResponse }: DebugMenuProps) {
+export function DebugMenu({ onAction }: DebugMenuProps) {
 	const selectRef = useRef<HTMLSelectElement>(null);
 
 	function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
-		if (e.target.value === "mock") onMockResponse();
+		const val = e.target.value;
+		if (val) onAction(val);
 		if (selectRef.current) selectRef.current.selectedIndex = 0;
 	}
 
@@ -30,7 +32,17 @@ export function DebugMenu({ onMockResponse }: DebugMenuProps) {
 			}}
 		>
 			<option value="menu" disabled>Debug Menu</option>
-			<option value="mock">Send mock BMO response</option>
+			<optgroup label="Test APIs">
+				<option value="test-voice">Check if BMO's voice works</option>
+				<option value="test-logic">Check if BMO's logic works</option>
+			</optgroup>
+			<optgroup label="Animation States">
+				<option value="state-idle">State: Idle</option>
+				<option value="state-listening">State: Listening</option>
+				<option value="state-thinking">State: Thinking</option>
+				<option value="state-speaking">State: Speaking</option>
+				<option value="state-error">State: Error</option>
+			</optgroup>
 		</select>
 	);
 }

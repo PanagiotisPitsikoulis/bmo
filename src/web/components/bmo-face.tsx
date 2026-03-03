@@ -42,7 +42,7 @@ export function BMOFace({ state }: { state: State }) {
 		function renderLEDs() {
 			// Dark PCB background
 			ctx.fillStyle = "#0a0a0a";
-			ctx.fillRect(0, 0, canvas.width, canvas.height);
+			ctx.fillRect(0, 0, canvas!.width, canvas!.height);
 
 			for (let y = 0; y < H; y++) {
 				for (let x = 0; x < W; x++) {
