@@ -1,144 +1,100 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
+import { motion, AnimatePresence } from "motion/react";
+import { useParallax } from "./features/home/use-parallax";
+import { sfxNavigate } from "./lib/sounds";
 
-import type { State, ChatMessage } from "./lib/types";
-import { playAudio } from "./lib/audio";
-import { startSpeechRecognition, isSpeechSupported } from "./lib/speech";
-import { createWebSocket, sendMessage } from "./lib/websocket";
-import { BMOFace } from "./components/bmo-face";
-import { ChatLog } from "./components/chat-log";
-import { Controls } from "./components/controls";
-import { DebugMenu } from "./components/debug-menu";
+import { Nav } from "./components/nav";
+import { Home } from "./pages/home";
+import { TestInterface } from "./pages/test-interface";
+import { Instructions } from "./pages/instructions";
 
-function App() {
-	const [state, setState] = useState<State>("idle");
-	const [messages, setMessages] = useState<ChatMessage[]>([]);
-	const [isRecording, setIsRecording] = useState(false);
-	const [error, setError] = useState<string | null>(null);
-	const [connected, setConnected] = useState(false);
-	const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-	const wsRef = useRef<WebSocket | null>(null);
-
-	function showError(msg: string) {
-		setError(msg);
-		setState("error");
-		if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
-		errorTimerRef.current = setTimeout(() => {
-			setError(null);
-			setState("idle");
-		}, 6000);
-	}
-
-	useEffect(() => {
-		const ws = createWebSocket({
-			onState: (s) => {
-				// Don't let server "idle" clear an active error
-				if (s === "idle" && error) return;
-				setState(s);
-			},
-			onResponse: (text) =>
-				setMessages((prev) => [...prev, { role: "assistant", text }]),
-			onAudio: (data) => playAudio(data, () => setState("idle")),
-			onError: (msg) => showError(msg),
-			onDisconnect: () => {
-				setConnected(false);
-				showError("Disconnected from server. Refresh to reconnect.");
-			},
-		});
-		ws.onopen = () => setConnected(true);
-		wsRef.current = ws;
-		return () => ws.close();
-	}, [error]);
-
-	function handleSend(text: string) {
-		if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-			showError("Not connected to server.");
-			return;
-		}
-		setMessages((prev) => [...prev, { role: "user", text }]);
-		sendMessage(wsRef.current, text);
-		setState("thinking");
-	}
-
-	function handleTalk() {
-		if (isRecording) {
-			setIsRecording(false);
-			return;
-		}
-		setIsRecording(true);
-		setState("listening");
-		startSpeechRecognition(
-			(text) => {
-				setIsRecording(false);
-				handleSend(text);
-			},
-			(err) => {
-				setIsRecording(false);
-				showError(err);
-			},
-			() => {
-				setIsRecording(false);
-			},
-		);
-	}
-
-	function handleDebugAction(action: string) {
-		if (action.startsWith("state-")) {
-			setState(action.replace("state-", "") as State);
-			return;
-		}
-
-		if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-			showError("Not connected to server.");
-			return;
-		}
-
-		if (action === "test-voice") {
-			wsRef.current.send(JSON.stringify({ type: "test-voice" }));
-			setState("speaking");
-		} else if (action === "test-logic") {
-			wsRef.current.send(JSON.stringify({ type: "test-logic" }));
-			setState("thinking");
-		}
-	}
-
-	return (
-		<div className="min-h-screen bg-white font-mono flex flex-col items-center p-8 gap-6">
-			<div className="flex items-center gap-3">
-				<h1 className="text-2xl font-bold border-b-4 border-black pb-2">
-					BMO Test Interface
-				</h1>
-				<span
-					className={`w-3 h-3 rounded-full ${connected ? "bg-green-500" : "bg-red-500"}`}
-					title={connected ? "Connected" : "Disconnected"}
-				/>
-			</div>
-
-			<BMOFace state={state} />
-
-			{/* Status + debug menu inline */}
-			<div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-				<div style={{ border: "2px solid black", padding: "4px 16px", fontSize: "14px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.1em", fontFamily: "monospace" }}>
-					{state}
-				</div>
-				<DebugMenu onAction={handleDebugAction} />
-			</div>
-
-			{error && (
-				<div className="w-full max-w-lg border-4 border-red-500 bg-red-50 p-3 text-red-700 text-sm">
-					{error}
-				</div>
-			)}
-
-			<ChatLog messages={messages} />
-			<Controls
-				onSend={handleSend}
-				onTalk={handleTalk}
-				isRecording={isRecording}
-				speechSupported={isSpeechSupported()}
-			/>
-		</div>
-	);
+function getHash() {
+  return window.location.hash || "#/";
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+function App() {
+  const [hash, setHash] = useState(getHash);
+
+  useEffect(() => {
+    document.documentElement.classList.add("dark");
+  }, []);
+
+  const initialRef = useRef(true);
+  useEffect(() => {
+    const onHashChange = () => {
+      setHash(getHash());
+      sfxNavigate();
+    };
+    window.addEventListener("hashchange", onHashChange);
+    initialRef.current = false;
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  let page: React.ReactNode;
+  switch (hash) {
+    case "#/test":
+      page = <TestInterface />;
+      break;
+    case "#/instructions":
+      page = <Instructions />;
+      break;
+    default:
+      page = <Home />;
+      break;
+  }
+
+  const isHome = hash === "#/" || hash === "#";
+
+  const { bgX, bgY, bgScale } = useParallax();
+
+  return (
+    <div className="relative min-h-screen overflow-hidden flex flex-col items-center">
+      <motion.div
+        className="fixed inset-[-40px] bg-cover bg-center bg-no-repeat z-0"
+        style={{
+          backgroundImage: "url(/assets/adventure-time.webp)",
+          x: bgX,
+          y: bgY,
+          scale: bgScale,
+        }}
+        animate={{
+          y: [0, 4, 0, 2, 0],
+          rotate: [0, 0.3, 0, -0.3, 0],
+        }}
+        transition={{
+          duration: 6,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+      />
+      <div className={`relative z-10 w-full flex flex-col items-center ${isHome ? "min-h-screen" : "min-h-screen p-8 gap-8"}`}>
+        <Nav currentHash={hash} floating={isHome} />
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={hash}
+            className={`w-full flex flex-col items-center ${isHome ? "min-h-screen" : "gap-8"}`}
+            initial={{ opacity: 0, y: 30, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.97 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+          >
+            {page}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+const container = document.getElementById("root")!;
+const root = (globalThis as any).__bmo_root ??= createRoot(container);
+root.render(<App />);
+
+// Force full remount on HMR so WebSocket connections and state reset cleanly
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    root.unmount();
+    delete (globalThis as any).__bmo_root;
+  });
+}

@@ -5,7 +5,7 @@ import { waitForWakeWord, startBridge, stopBridge } from "./audio/wake-word";
 import { transcribe } from "./stt/whisper";
 import { chat, summarize } from "./llm/claude";
 import { speak } from "./tts/fish-audio";
-import { executeAction, extractJson } from "./tools/router";
+import { executeAction, extractJson, extractEmotion, stripJson } from "./tools/router";
 import { loadHistory, saveHistory, resetMemory } from "./memory";
 import * as renderer from "./display/renderer";
 
@@ -17,8 +17,11 @@ const SOUNDS = {
   error: "sounds/error_sounds",
 };
 
+const EMOTION_COOLDOWN_MESSAGES = 3;
+
 let state: BotStateType = BotState.WARMUP;
 let messages: Message[] = loadHistory();
+let messagesSinceEmotionChange = 0;
 
 function setState(newState: BotStateType, msg?: string): void {
   if (msg) console.log(`[STATE] ${newState.toUpperCase()}: ${msg}`);
@@ -77,43 +80,50 @@ async function mainLoop(): Promise<void> {
 
       // THINKING — get Claude response
       setState(BotState.THINKING, "Thinking...");
-      let fullResponse = "";
-      const response = await chat(messages, (chunk) => {
-        fullResponse += chunk;
-      });
-      fullResponse = response;
+      const fullResponse = await chat(messages);
       thinkingActive.active = false;
 
-      // Check if response is a tool action
+      // Extract emotion with tolerance — don't flip-flop every message
+      const newEmotion = extractEmotion(fullResponse);
+      messagesSinceEmotionChange++;
+      if (newEmotion && newEmotion !== renderer.getEmotion() && messagesSinceEmotionChange >= EMOTION_COOLDOWN_MESSAGES) {
+        renderer.setEmotion(newEmotion);
+        messagesSinceEmotionChange = 0;
+        console.log(`[EMOTION] ${newEmotion}`);
+      }
+
+      // Extract action data
       const actionData = extractJson(fullResponse);
-      if (actionData && actionData.action) {
+      let finalText: string;
+
+      if (actionData?.action) {
         console.log(`[ACTION] ${JSON.stringify(actionData)}`);
         const toolResult = await executeAction(actionData);
+        const spokenText = stripJson(fullResponse);
 
         if (toolResult === "INVALID_ACTION") {
-          setState(BotState.SPEAKING, "Speaking...");
-          await speak("I am not sure how to do that.");
+          finalText = spokenText || "I am not sure how to do that.";
         } else if (toolResult === "SEARCH_EMPTY") {
-          setState(BotState.SPEAKING, "Speaking...");
-          await speak("I searched, but I could not find anything about that.");
+          finalText = spokenText || "I searched, but I could not find anything about that.";
         } else if (toolResult === "SEARCH_ERROR") {
-          setState(BotState.SPEAKING, "Speaking...");
-          await speak("I cannot reach the internet right now.");
+          finalText = spokenText || "I cannot reach the internet right now.";
+        } else if (toolResult.startsWith("MEMORY_SAVED:")) {
+          finalText = spokenText || "B-MO will remember that!";
         } else {
-          // Summarize tool result and speak it
           setState(BotState.THINKING, "Reading results...");
-          const summary = await summarize(toolResult, userText);
-          setState(BotState.SPEAKING, "Speaking...");
-          await speak(summary);
-          messages.push({ role: "assistant", content: summary });
+          finalText = await summarize(toolResult, userText);
         }
+      } else if (actionData?.emotion) {
+        // Emotion-only JSON, strip it from display text
+        finalText = stripJson(fullResponse);
       } else {
-        // Normal chat response — speak it
-        setState(BotState.SPEAKING, "Speaking...");
-        console.log(`[BMO] ${fullResponse}`);
-        await speak(fullResponse);
-        messages.push({ role: "assistant", content: fullResponse });
+        finalText = fullResponse;
       }
+
+      console.log(`[BMO] ${finalText}`);
+      setState(BotState.SPEAKING, "Speaking...");
+      await speak(finalText);
+      messages.push({ role: "assistant", content: finalText });
 
       // Save memory
       await saveHistory(messages);

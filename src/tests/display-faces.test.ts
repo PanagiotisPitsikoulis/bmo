@@ -1,15 +1,7 @@
 import { test, expect, describe } from "bun:test";
-import {
-  idleFrames,
-  listeningFrames,
-  thinkingFrames,
-  speakingFrames,
-  errorFrames,
-  warmupFrames,
-  getFrames,
-  type FaceState,
-} from "../display/faces";
+import { getFrames, type FaceState } from "../display/faces";
 import { WIDTH, HEIGHT, FRAME_SIZE } from "../display/matrix";
+import type { Emotion } from "../config";
 
 describe("display constants", () => {
   test("WIDTH is 64", () => {
@@ -25,53 +17,41 @@ describe("display constants", () => {
   });
 });
 
-describe("face frame generators", () => {
-  test("idleFrames returns non-empty array", () => {
-    const frames = idleFrames();
-    expect(frames.length).toBeGreaterThan(0);
+describe("face frame generators (normal emotion)", () => {
+  test("idle returns non-empty array with 22 frames", () => {
+    const frames = getFrames("idle", "normal");
+    expect(frames.length).toBe(22);
   });
 
-  test("idleFrames has 22 frames (20 normal + 2 blink)", () => {
-    const frames = idleFrames();
-    expect(frames).toHaveLength(22);
-  });
-
-  test("listeningFrames returns 8 frames", () => {
-    const frames = listeningFrames();
+  test("listening returns 8 frames", () => {
+    const frames = getFrames("listening", "normal");
     expect(frames).toHaveLength(8);
   });
 
-  test("thinkingFrames returns 12 frames", () => {
-    const frames = thinkingFrames();
+  test("thinking returns 12 frames", () => {
+    const frames = getFrames("thinking", "normal");
     expect(frames).toHaveLength(12);
   });
 
-  test("speakingFrames returns 4 frames", () => {
-    const frames = speakingFrames();
+  test("speaking returns 4 frames", () => {
+    const frames = getFrames("speaking", "normal");
     expect(frames).toHaveLength(4);
   });
 
-  test("errorFrames returns 1 frame", () => {
-    const frames = errorFrames();
+  test("error returns 1 frame", () => {
+    const frames = getFrames("error", "normal");
     expect(frames).toHaveLength(1);
   });
 
-  test("warmupFrames returns 17 frames (0 to 16 inclusive)", () => {
-    const frames = warmupFrames();
+  test("warmup returns 17 frames", () => {
+    const frames = getFrames("warmup", "normal");
     expect(frames).toHaveLength(17);
   });
 
   test("all frames have correct byte size", () => {
-    const allFrameSets = [
-      idleFrames(),
-      listeningFrames(),
-      thinkingFrames(),
-      speakingFrames(),
-      errorFrames(),
-      warmupFrames(),
-    ];
-
-    for (const frames of allFrameSets) {
+    const states: FaceState[] = ["idle", "listening", "thinking", "speaking", "error", "warmup"];
+    for (const state of states) {
+      const frames = getFrames(state, "normal");
       for (const frame of frames) {
         expect(frame.length).toBe(FRAME_SIZE);
       }
@@ -79,16 +59,9 @@ describe("face frame generators", () => {
   });
 
   test("all frames are Uint8Array instances", () => {
-    const allFrameSets = [
-      idleFrames(),
-      listeningFrames(),
-      thinkingFrames(),
-      speakingFrames(),
-      errorFrames(),
-      warmupFrames(),
-    ];
-
-    for (const frames of allFrameSets) {
+    const states: FaceState[] = ["idle", "listening", "thinking", "speaking", "error", "warmup"];
+    for (const state of states) {
+      const frames = getFrames(state, "normal");
       for (const frame of frames) {
         expect(frame).toBeInstanceOf(Uint8Array);
       }
@@ -96,7 +69,7 @@ describe("face frame generators", () => {
   });
 
   test("all pixel values are in 0-255 range", () => {
-    const frames = idleFrames();
+    const frames = getFrames("idle", "normal");
     for (const frame of frames) {
       for (let i = 0; i < frame.length; i++) {
         expect(frame[i]!).toBeGreaterThanOrEqual(0);
@@ -106,21 +79,19 @@ describe("face frame generators", () => {
   });
 
   test("idle frames have teal green background (0, 200, 160)", () => {
-    const frames = idleFrames();
+    const frames = getFrames("idle", "normal");
     const frame = frames[0]!;
-    // Check pixel at (0,0) which should be background
-    expect(frame[0]).toBe(0);   // R
-    expect(frame[1]).toBe(200); // G
-    expect(frame[2]).toBe(160); // B
+    expect(frame[0]).toBe(0);
+    expect(frame[1]).toBe(200);
+    expect(frame[2]).toBe(160);
   });
 
   test("error frames have red background (180, 40, 40)", () => {
-    const frames = errorFrames();
+    const frames = getFrames("error", "normal");
     const frame = frames[0]!;
-    // Check pixel at (0,0) which should be background
-    expect(frame[0]).toBe(180); // R
-    expect(frame[1]).toBe(40);  // G
-    expect(frame[2]).toBe(40);  // B
+    expect(frame[0]).toBe(180);
+    expect(frame[1]).toBe(40);
+    expect(frame[2]).toBe(40);
   });
 });
 
@@ -134,14 +105,75 @@ describe("getFrames", () => {
   });
 
   test("caches frames on subsequent calls", () => {
-    const frames1 = getFrames("idle");
-    const frames2 = getFrames("idle");
-    expect(frames1).toBe(frames2); // same reference
+    const frames1 = getFrames("idle", "normal");
+    const frames2 = getFrames("idle", "normal");
+    expect(frames1).toBe(frames2);
   });
 
   test("returns different frames for different states", () => {
-    const idle = getFrames("idle");
-    const error = getFrames("error");
+    const idle = getFrames("idle", "normal");
+    const error = getFrames("error", "normal");
     expect(idle.length).not.toBe(error.length);
+  });
+});
+
+describe("emotion face generators", () => {
+  const emotions: Emotion[] = ["normal", "happy", "sad", "hungry", "in_love", "sleepy"];
+  const states: FaceState[] = ["idle", "listening", "thinking", "speaking"];
+
+  test("all emotion+state combinations produce valid frames", () => {
+    for (const emotion of emotions) {
+      for (const state of states) {
+        const frames = getFrames(state, emotion);
+        expect(frames.length).toBeGreaterThan(0);
+        for (const frame of frames) {
+          expect(frame.length).toBe(FRAME_SIZE);
+          expect(frame).toBeInstanceOf(Uint8Array);
+        }
+      }
+    }
+  });
+
+  test("happy idle has 16 frames (bounce animation)", () => {
+    expect(getFrames("idle", "happy")).toHaveLength(16);
+  });
+
+  test("sad idle has 30 frames (slow blink)", () => {
+    expect(getFrames("idle", "sad")).toHaveLength(30);
+  });
+
+  test("hungry idle has 12 frames (chewing)", () => {
+    expect(getFrames("idle", "hungry")).toHaveLength(12);
+  });
+
+  test("in_love idle has 8 frames (heart pulse)", () => {
+    expect(getFrames("idle", "in_love")).toHaveLength(8);
+  });
+
+  test("sleepy idle has 16 frames (eye droop + Zs)", () => {
+    expect(getFrames("idle", "sleepy")).toHaveLength(16);
+  });
+
+  test("error overrides emotion", () => {
+    const errorNormal = getFrames("error", "normal");
+    const errorHappy = getFrames("error", "happy");
+    // Both should be 1 frame with red background
+    expect(errorNormal).toHaveLength(1);
+    expect(errorHappy).toHaveLength(1);
+    expect(errorNormal[0]![0]).toBe(180); // red bg
+    expect(errorHappy[0]![0]).toBe(180);  // same red bg
+  });
+
+  test("different emotions produce different frame data for idle", () => {
+    const normal = getFrames("idle", "normal");
+    const happy = getFrames("idle", "happy");
+    // Different frame counts means different animations
+    expect(normal.length).not.toBe(happy.length);
+  });
+
+  test("cache key includes emotion", () => {
+    const normalIdle = getFrames("idle", "normal");
+    const happyIdle = getFrames("idle", "happy");
+    expect(normalIdle).not.toBe(happyIdle); // different cache entries
   });
 });

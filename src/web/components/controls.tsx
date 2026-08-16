@@ -1,4 +1,7 @@
 import React, { useState } from "react";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Microphone, MicrophoneSlash, PaperPlaneRight } from "@phosphor-icons/react";
 
 interface ControlsProps {
 	onSend: (text: string) => void;
@@ -7,7 +10,12 @@ interface ControlsProps {
 	speechSupported: boolean;
 }
 
-export function Controls({ onSend, onTalk, isRecording, speechSupported }: ControlsProps) {
+export function Controls({
+	onSend,
+	onTalk,
+	isRecording,
+	speechSupported,
+}: ControlsProps) {
 	const [input, setInput] = useState("");
 
 	function handleSend() {
@@ -17,35 +25,32 @@ export function Controls({ onSend, onTalk, isRecording, speechSupported }: Contr
 	}
 
 	return (
-		<div className="w-full max-w-lg flex gap-2">
-			<input
-				type="text"
+		<div className="w-full flex gap-2">
+			<Input
 				value={input}
 				onChange={(e) => setInput(e.target.value)}
 				onKeyDown={(e) => e.key === "Enter" && handleSend()}
 				placeholder="Type a message..."
-				className="flex-1 border-4 border-black px-3 py-2 font-mono outline-none focus:shadow-[4px_4px_0px_0px_#000]"
+				className="flex-1"
 			/>
-			<button
-				onClick={handleSend}
-				className="border-4 border-black px-4 py-2 font-bold hover:bg-black hover:text-white transition-colors"
-			>
+			<Button onClick={handleSend}>
+				<PaperPlaneRight />
 				Send
-			</button>
-			<button
+			</Button>
+			<Button
 				onClick={onTalk}
 				disabled={!speechSupported}
-				title={speechSupported ? "Click to talk" : "Speech recognition not supported — use Chrome"}
-				className={`border-4 border-black px-4 py-2 font-bold transition-colors ${
-					!speechSupported
-						? "opacity-40 cursor-not-allowed"
-						: isRecording
-							? "bg-red-500 text-white"
-							: "hover:bg-black hover:text-white"
-				}`}
+				variant={isRecording ? "noShadow" : "neutral"}
+				title={
+					speechSupported
+						? "Click to talk"
+						: "Speech recognition not supported — use Chrome"
+				}
+				className={isRecording ? "bg-destructive text-destructive-foreground border-border" : ""}
 			>
+				{isRecording ? <MicrophoneSlash /> : <Microphone />}
 				{isRecording ? "Stop" : "Talk"}
-			</button>
+			</Button>
 		</div>
 	);
 }

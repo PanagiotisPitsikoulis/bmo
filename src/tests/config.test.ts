@@ -60,8 +60,8 @@ describe("SYSTEM_PROMPT", () => {
     expect(SYSTEM_PROMPT.length).toBeGreaterThan(0);
   });
 
-  test("contains BMO personality", () => {
-    expect(SYSTEM_PROMPT).toContain("BMO");
+  test("contains B-MO personality", () => {
+    expect(SYSTEM_PROMPT).toContain("B-MO");
   });
 
   test("contains action examples", () => {

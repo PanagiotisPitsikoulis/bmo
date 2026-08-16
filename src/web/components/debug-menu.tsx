@@ -1,48 +1,45 @@
-import React, { useRef } from "react";
-import type { State } from "../lib/types";
+import React from "react";
+import type { Emotion } from "../lib/types";
+import {
+	Select,
+	SelectTrigger,
+	SelectContent,
+	SelectItem,
+	SelectValue,
+} from "./ui/select";
+
+const EMOTIONS: Emotion[] = ["normal", "happy", "sad", "hungry", "in_love", "sleepy"];
 
 interface DebugMenuProps {
-	onAction: (action: string) => void;
+	onMockResponse: () => void;
+	onSetEmotion?: (emotion: Emotion) => void;
 }
 
-export function DebugMenu({ onAction }: DebugMenuProps) {
-	const selectRef = useRef<HTMLSelectElement>(null);
-
-	function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
-		const val = e.target.value;
-		if (val) onAction(val);
-		if (selectRef.current) selectRef.current.selectedIndex = 0;
+export function DebugMenu({ onMockResponse, onSetEmotion }: DebugMenuProps) {
+	function handleChange(value: string) {
+		if (value === "mock") {
+			onMockResponse();
+			return;
+		}
+		if (value.startsWith("emotion:")) {
+			const emo = value.slice(8) as Emotion;
+			onSetEmotion?.(emo);
+		}
 	}
 
 	return (
-		<select
-			ref={selectRef}
-			onChange={handleChange}
-			defaultValue="menu"
-			style={{
-				border: "2px solid black",
-				padding: "4px 8px",
-				fontFamily: "monospace",
-				fontSize: "14px",
-				fontWeight: "bold",
-				background: "white",
-				cursor: "pointer",
-				outline: "none",
-				minWidth: "44px",
-			}}
-		>
-			<option value="menu" disabled>Debug Menu</option>
-			<optgroup label="Test APIs">
-				<option value="test-voice">Check if BMO's voice works</option>
-				<option value="test-logic">Check if BMO's logic works</option>
-			</optgroup>
-			<optgroup label="Animation States">
-				<option value="state-idle">State: Idle</option>
-				<option value="state-listening">State: Listening</option>
-				<option value="state-thinking">State: Thinking</option>
-				<option value="state-speaking">State: Speaking</option>
-				<option value="state-error">State: Error</option>
-			</optgroup>
-		</select>
+		<Select onValueChange={handleChange} value="">
+			<SelectTrigger className="w-auto h-auto px-4 py-1 text-sm uppercase tracking-wider">
+				<SelectValue placeholder="Debug" />
+			</SelectTrigger>
+			<SelectContent>
+				<SelectItem value="mock">Mock BMO response</SelectItem>
+				{EMOTIONS.map((emo) => (
+					<SelectItem key={emo} value={`emotion:${emo}`}>
+						Emotion: {emo}
+					</SelectItem>
+				))}
+			</SelectContent>
+		</Select>
 	);
 }
